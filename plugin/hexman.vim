@@ -32,8 +32,8 @@
 "
 "   Maintainer: Peter Franz (Peter.Franz.muc@web.de)
 "          URL: http://vim.sourceforge.net/scripts/...
-"  LastChange : 30Okt03
-"      Version: 0.5.0
+"  LastChange : 31Okt03
+"      Version: 0.5.1
 "        Usage: Normally, this file should reside in the plugins
 "               directory and be automatically sourced. If not, you must
 "               manually source this file using ':source hexman.vim'.
@@ -58,7 +58,8 @@
 "		autocmd, langmap and byte_offset, make sure Vim is built with
 "		this features (info with :version cammand).
 "
-"      History: 0.5.0 Changing characters in ascii area shows the releated
+"      History: 0.5.1 FIX: Editing in Hex part was not possible (as of 0.5.0).
+"		0.5.0 Changing characters in ascii area shows the releated
 "		      hex values. Note: not all ascii characters are supported!
 "		      (see Known Problems).
 "		0.4.1 FIX: use english Message.
@@ -829,20 +830,29 @@ endfun
 " Show Character
 " =======================================================================================
 function s:HEX_Char()
-  " get character
-  let char = getline(".")[col(".")-1]
-  let hex = s:HEX_Nr2Hex(char2nr(char))
-  call s:HEX_ToggleH2A()	" Move cursor to other area
-  " delete two characters (hex)
-  exe ":norm! 2x"
-  " switch to insert mode and put new hex value
-  exe ":norm! i" . hex
-  " move one forward
-  call s:HEX_NextPrev(1)
-  " Move cursor to other area
-  call s:HEX_ToggleH2A()
+  " Get the current column number.
+  let curcol  = col(".")
+  "
+  if curcol > 50
+     " cursor is in ascii part
+     " get character
+     let char = getline(".")[col(".")-1]
+     let hex = s:HEX_Nr2Hex(char2nr(char))
+     call s:HEX_ToggleH2A()	" Move cursor to other area
+     " delete two characters (hex)
+     exe ":norm! 2x"
+     " switch to insert mode and put new hex value
+     exe ":norm! i" . hex
+     " move one forward
+     call s:HEX_NextPrev(1)
+     " Move cursor to other area
+     call s:HEX_ToggleH2A()
+  else
+     " Move cursor one right
+     exe ":norm! l"
+  endif
   " Move cursor one right
-  exe ":norm! <Right>"
+  " exe ":norm! <Right>"
   " refresh status line
   exe 'silent! match AsciiPos /\%' . s:HEX_ShowOffsets() . 'v'
   " start select mode (hope it's the same like replace)
