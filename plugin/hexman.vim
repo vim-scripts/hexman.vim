@@ -18,6 +18,8 @@
 "		- move to next/previous hex character with <TAB> and <S-TAB>
 "         	  If you don't like this mapping - please set in your vimrc:
 "	  	  let hex_movetab = 0
+"		- Switch cursor between hex and ascii area 
+"		  (as of version 0.4.0)
 "		- staying on a hex character it marks the related ascii column
 "		- staying on a ascii character it marks the related hex column
 "		  (as of version 0.2.0)
@@ -30,8 +32,8 @@
 "
 "   Maintainer: Peter Franz (Peter.Franz.muc@web.de)
 "          URL: http://vim.sourceforge.net/scripts/...
-"  LastChange : Do 07.08.2003
-"      Version: 0.2.1
+"  LastChange : Mo 18.08.2003
+"      Version: 0.4.1
 "        Usage: Normally, this file should reside in the plugins
 "               directory and be automatically sourced. If not, you must
 "               manually source this file using ':source hexman.vim'.
@@ -50,7 +52,12 @@
 "               :help *23.4* 
 "               :help xxd                                                    
 "
-"      History: 0.2.1 FIX: from Ingo karkat - conversion back fails 
+"      History: 0.4.1 FIX: use english Message.
+"		0.4.0 Switch cursor between hex and ascii area.
+"		      (see Additional Features).
+"		0.3.0 After calling/leaving hexman the cursor is set to current
+"  		      file position.
+"		0.2.1 FIX: from Ingo karkat - conversion back fails 
 "                     (xxd-path was not enclosed in double quotes).
 "		0.2.0 Staying on a ascii character it marks the 
 "		      related hex column.
@@ -58,8 +65,8 @@
 " 		0.1.0 Show own hexman menu entry with hexman commands 
 "                     (gui version).
 "		0.0.2 FIX: default moving to next hex character 
-"		with <TAB> and <S-TAB> don't work on (LINUX/UNIX)
-"		(see Additional Features).
+"		      with <TAB> and <S-TAB> don't work on (LINUX/UNIX)
+"		      (see Additional Features).
 "               0.0.1 Initial Release
 "               Some Functions are derived from Robert Roberts
 "               byteme.vim version 0.0.2
@@ -77,19 +84,22 @@
 "	<leader> hg  	HexGoto: Goto hex offset. 
 "	<leader> hn  	HexNext: Goto next hex offset. 
 "	<leader> hp  	HexPrev: Goto previous hex offset. 
+"	<leader> ht  	HexToggle: Switch cursor between hex and ascii area.
 "	<leader> hs  	HexStatus: Show / Hide hexoffset infos in statusline
-"			and related ascii colum	
+"			and related ascii colum.
 "
 " 	If you want, you can change the mapping in your vimrc:
-"	Example (call with function key F6 the Hexmode:
+"	Example: call/leave with function key F6 the Hexmode:
 "	map <F6>  <Plug>HexManager                                           
 "
 "	Additional Features in HexManger:
 "	- show in statusline the current offset (hex and dec.)
-"	- moving to next hex character with <TAB> and <S-TAB>
+"	- moving to next hex character with <TAB> and <S-TAB>,
+"         switch cursor between hex and ascii area with character t
 "         If you don't like this mapping - please set in your vimrc:
 "	  let hex_movetab = 0
 "	- staying on a hex character it marks the related ascii column
+"
 "	If something is wrong (I think there is) or we can do 
 "	something better - please let me know...
 "
@@ -115,6 +125,9 @@ endif
 if !hasmapto('<Plug>HexPrev')
   map <unique> <Leader>hp <Plug>HexPrev
 endif
+if !hasmapto('<Plug>HexToggle')
+  map <unique> <Leader>ht <Plug>HexToggle
+endif
 if !hasmapto('<Plug>HexStatus')
   map <unique> <Leader>hs <Plug>HexStatus
 endif
@@ -125,6 +138,7 @@ noremap <unique> <script> <Plug>HexInsert  <SID>Insert
 noremap <unique> <script> <Plug>HexGoto    <SID>Goto
 noremap <unique> <script> <Plug>HexNext    <SID>Next
 noremap <unique> <script> <Plug>HexPrev    <SID>Prev
+noremap <unique> <script> <Plug>HexToggle  <SID>Toggle
 noremap <unique> <script> <Plug>HexStatus  <SID>Status
 
 noremap <SID>Manager   :call <SID>HEX_Manager()<CR>
@@ -133,6 +147,7 @@ noremap <SID>Insert    :call <SID>HEX_Insert()<CR>
 noremap <SID>Goto      :call <SID>HEX_Goto()<CR>
 noremap <SID>Next      :call <SID>HEX_NextPrev(+1)<CR>
 noremap <SID>Prev      :call <SID>HEX_NextPrev(-1)<CR>
+noremap <SID>Toggle    :call <SID>HEX_ToggleH2A()<CR>
 noremap <SID>Status    :call <SID>HEX_Status()<CR>
 
 "=============================================================================
@@ -174,13 +189,48 @@ let loaded_hexman = 1
 function s:HEX_Manager()
 "
   if g:HEX_active == 1
-    " convert back to normal mode
+    " get cursor position from hex, convert file to normal and put cursor 
+    " get cursor position
+    let offset = s:HEX_GetOffset()
+    call s:HEX_ToOffset(offset)
+    let offset = s:HEX_GetOffset()
+    let gopos = offset + 1	" command go is the first character 1 (not 0)
+    " convert file to normal mode
     :silent call s:HEX_XxdBack()
+    " move cursor to file position
+    exe gopos"go"
     " clear offset infos
     echo ""			
   else
+    " vim don't support the current cursor position via a function
+    " only (known) posibility is to get it with g<c-g>
+    " We put this string in a variable and pick the number after Byte
+    " but this is language dependend - so we switch temporarily to "EN".
+    " here we go
+    "
+    " get current language
+    " use of register h - hopefully not used
+    redir @h
+    :silent exe ":lan mes"
+    :redir END
+    let sLanS = @h
+    let nC = strlen(sLanS) - 1			" get string length
+    let sMes = strpart(sLanS, nC-2, 2)	" two char for mes
+    " messages in english
+    :silent exe ":lan mes en"
+    " use of register h - hopefully not used
+    redir @h
+    " put message in register H
+    :silent exe "normal g\<c-g>"
+    :redir END
+    " back to original message
+    :silent exe ":lan mes " . sMes
+    let sH = @h		" put string from register H in variable sH
+    let sPos = s:HEX_CutG(sH) - 1	" subtract one
     " convert over xxd
     :silent call s:HEX_XxdConv()
+    " move to calculated position
+    call s:HEX_ToOffset(sPos)
   endif
 endfun
 "
@@ -295,9 +345,11 @@ let g:HEX_active=0	" initialize - set hex mode off
 function s:HEX_XxdConv()
 "
   " get cursor position
-  let g:cc = line2byte(line("."))
-  let g:cc = g:cc - 1	" hex view starts with zero
-  let offset = s:HEX_Nr2Hex(g:cc)	" convert decimal to hex
+  " let g:cc = line2byte(line("."))
+  " let g:cc = g:cc - 1	" hex view starts with zero
+  " let offset = s:HEX_Nr2Hex(g:cc)	" convert decimal to hex
+  " get position works not correct this way
+  "
   "
   let mod = &mod
   if has("vms")
@@ -322,11 +374,13 @@ function s:HEX_XxdConv()
     let g:hex_movetab = 1	" Default
   endif
   if g:hex_movetab == 1
-    let g:hex_tab = mapcheck("<TAB>")	" save mapping for TAB
-    let g:hex_stab = mapcheck("<S-TAB>")	" save mapping for Shift-TAB
-    let g:hex_stab = 0
+    let s:hex_tab = mapcheck("<TAB>")	" save mapping for TAB
+    let s:hex_stab = mapcheck("<S-TAB>")	" save mapping for Shift-TAB
+    
+    " let g:hex_stab = 0
     map <silent> <TAB> :silent call <SID>HEX_NextPrev(+1)<CR>
     map <silent> <S-TAB> :silent call <SID>HEX_NextPrev(-1)<CR>
+    map <silent> t :silent call <SID>HEX_ToggleH2A()<CR>
     map <silent> ? :call <SID>HEX_Help()<CR>
   endif
   "
@@ -341,7 +395,7 @@ function s:HEX_XxdConv()
   " remember we are in hex mode
   let g:HEX_active=1
   " put cursor to related position
-  call s:HEX_ToOffset(offset)
+  " call s:HEX_ToOffset(offset)
   call s:HEX_Status()
   "
 endfun
@@ -367,8 +421,10 @@ function s:HEX_XxdBack()
   let g:HEX_active=0			" no hex mode
   if g:hex_movetab == 1
     " restore mapping
-    exe "map <silent> <TAB> " . g:hex_tab
-    exe "map <silent> <S-TAB> " . g:hex_stab
+    exe "map <silent> <TAB> " . s:hex_tab
+    exe "map <silent> <S-TAB> " . s:hex_stab
+    exe "unmap <silent> t"
+    exe "unmap <silent> ?"
   endif
   " switch off Ascii pos highlighting
   :au! Cursorhold
@@ -557,6 +613,40 @@ function s:HEX_NextPrev(n)
 "
 endfun
 " =======================================================================================
+" Toggle Hex <-> Ascii area
+" =======================================================================================
+"
+function s:HEX_ToggleH2A()
+"
+  " Get colpos from other area
+  :silent let newcol = s:HEX_ShowOffsets()
+  let newcol = newcol
+  " Move cursor to newcol
+  " cursor to col 0
+  :silent exe "normal 0"
+  " move cursor to colpos
+  exec "norm " . newcol . "|"
+"
+endfun
+
+" =======================================================================================
+" Find Byte-Pos from String (get via g<c-g> )
+" =======================================================================================
+"
+function s:HEX_CutG(s)
+"
+  let sG = a:s
+  let nC = strlen(sG)			" get string length
+  let nP = match(sG, "Byte", 0)		" position of byte
+  let sP = strpart(sG, nP+5)		" get string part like: 1333 of 5000
+  
+  let nP = match(sP, " ", 0)		" Blank after 1333
+  let sB = strpart(sP, 0, nP)		" Get string till blank
+  return(sB)
+"
+endfun
+
+" =======================================================================================
 function s:HEX_ShowOffsets()
 " =======================================================================================
 " Calculate from hex offset the corresponding ascii offset and shows the result
@@ -645,7 +735,7 @@ endfun
 " =======================================================================================
 function s:HEX_Help()
 " 
-  echo "	Plugin: hexman.vim 	Version: 0.2.1"
+  echo "	Plugin: hexman.vim 	Version: 0.4.1"
   echo ""
   echo "	Available functions:"
   echo ""
@@ -655,6 +745,7 @@ function s:HEX_Help()
   echo "	<leader>hg  		Goto hex offset. "
   echo "	<leader>hn  		Goto next hex offset. "
   echo "	<leader>hp  		Goto previous hex offset. "
+  echo "	<leader>ht  		Switch cursor between hex and ascii area "
   echo "	<leader>hs  	        Show / Hide hexoffset infos in statusline"
   if !exists("g:mapleader")
 	echo "	<leader> = '\\'"
