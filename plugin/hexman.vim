@@ -22,11 +22,14 @@
 "		- Goto hex offset	
 "		- Delete hex character under cursor	
 "		- Insert ascii character before cursor	                      
+"		- Show own hexman menu entry with hexman commands (gui version).
+"         	  If you don't like the menu - please set in your vimrc:
+"	  	  let hex_menu = 0
 "
 "   Maintainer: Peter Franz (Peter.Franz.muc@web.de)
 "          URL: http://vim.sourceforge.net/scripts/...
-"  Last Change: Sam 14.06.2003
-"      Version: 0.0.2
+"  Last Change: Mi 30.07.2003
+"      Version: 0.1.0
 "        Usage: Normally, this file should reside in the plugins
 "               directory and be automatically sourced. If not, you must
 "               manually source this file using ':source hexman.vim'.
@@ -45,7 +48,8 @@
 "               :help *23.4* 
 "               :help xxd                                                    
 "
-"      History: 0.0.2 FIX: default moving to next hex character 
+"      History: 0.1.0 Show own hexman menu entry with hexman commands (gui version).
+"		0.0.2 FIX: default moving to next hex character 
 "		with <TAB> and <S-TAB> don't work on (LINUX/UNIX)
 "		(see Additional Features).
 "               0.0.1 Initial Release
@@ -78,7 +82,6 @@
 "         If you don't like this mapping - please set in your vimrc:
 "	  let hex_movetab = 0
 "	- staying on a hex character it marks the related ascii column
-"
 "	If something is wrong (I think there is) or we can do 
 "	something better - please let me know...
 "
@@ -134,6 +137,27 @@ if exists("loaded_hexman")
    finish
 endif
 let loaded_hexman = 1
+"
+"=============================================================================
+" 30JUL03 FR Add menue
+"=============================================================================
+  if !exists("g:hex_menu")
+    let g:hex_menu = 1	" Default
+  endif
+  if (g:hex_menu == 1 && has("gui_running"))
+	an <silent> 9000.10 He&xman.&Convert\ to\ HEX\ (and\ back)<TAB><leader>hm
+		\ :call <SID>HEX_Manager()<CR>
+	an 9000.20 He&xman.-sep1-			<Nop>
+	an <silent> 9000.30 He&xman.&Delete\ hex\ char\ under\ cursor<Tab><leader>hd
+		\ :call <SID>HEX_Delete()<CR>
+	an <silent> 9000.40 He&xman.&Insert\ ascii\ char\ before\ cursor<Tab><leader>hi
+		\ :call <SID>HEX_Insert()<CR>
+	an 9000.70 He&xman.-sep2-			<Nop>
+	an <silent> 9000.90 He&xman.&Goto\ /Hex\ offset<Tab><leader>hg
+		\ :call <SID>HEX_Goto()<CR>
+	an <silent> 9000.90 He&xman.&Show/Hide\ infos<Tab><leader>hs
+		\ :call <SID>HEX_Status()<CR>
+   endif
 "
 "=============================================================================
 " Toggle between Hexmode and Normalmode
@@ -262,6 +286,11 @@ let g:HEX_active=0	" initialize - set hex mode off
 "
 function s:HEX_XxdConv()
 "
+  " get cursor position
+  let g:cc = line2byte(line("."))
+  let g:cc = g:cc - 1	" hex view starts with zero
+  let offset = s:HEX_Nr2Hex(g:cc)	" convert decimal to hex
+  "
   let mod = &mod
   if has("vms")
     %!mc vim:xxd
@@ -301,12 +330,15 @@ function s:HEX_XxdConv()
     let g:hex_showstatus = 0	" no hex statusinfo
   endif
   call s:HEX_Status()
-    :highlight AsciiPos guibg=Yellow cterm=reverse term=reverse
-    :au! Cursorhold * exe 'match AsciiPos /\%' . s:HEX_ShowOffsets() . 'v'
-    :set ut=100 
+  :highlight AsciiPos guibg=Yellow cterm=reverse term=reverse
+  :au! Cursorhold * exe 'match AsciiPos /\%' . s:HEX_ShowOffsets() . 'v'
+  :set ut=100 
   "
   " remember we are in hex mode
   let g:HEX_active=1
+  " put cursor to related position
+  call s:HEX_ToOffset(offset)
+  "
 endfun
 "
 " ==============================================================================
@@ -553,6 +585,10 @@ endfun
 " Show / Stop Overwriting Statusline with Offset-Info
 " =======================================================================================
 function s:HEX_Status()
+  if g:HEX_active == 0
+    call s:HEX_ErrMsg()
+    return
+  endif
   if g:hex_showstatus == 1
     :au! Cursorhold
     :match none
@@ -584,9 +620,10 @@ function s:HEX_Help()
 	echo "	<leader> = " . g:mapleader
   endif
 endfun
+" 
 "=============================================================================
 " restore cpoptions
 let &cpo = s:save_cpo
 "=============================================================================
-" End offen hexman.vim
+" End off hexman.vim
 "=============================================================================
