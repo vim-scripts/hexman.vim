@@ -19,17 +19,19 @@
 "         	  If you don't like this mapping - please set in your vimrc:
 "	  	  let hex_movetab = 0
 "		- staying on a hex character it marks the related ascii column
+"		- staying on a ascii character it marks the related hex column
+"		  (as of version 0.2.0)
 "		- Goto hex offset	
 "		- Delete hex character under cursor	
 "		- Insert ascii character before cursor	                      
 "		- Show own hexman menu entry with hexman commands (gui version).
 "         	  If you don't like the menu - please set in your vimrc:
-"	  	  let hex_menu = 0
+"	  	  let hex_menu = 0 (as of version 0.1.0)
 "
 "   Maintainer: Peter Franz (Peter.Franz.muc@web.de)
 "          URL: http://vim.sourceforge.net/scripts/...
-"  Last Change: Mi 30.07.2003
-"      Version: 0.1.0
+"  LastChange : Do 07.08.2003
+"      Version: 0.2.1
 "        Usage: Normally, this file should reside in the plugins
 "               directory and be automatically sourced. If not, you must
 "               manually source this file using ':source hexman.vim'.
@@ -48,7 +50,13 @@
 "               :help *23.4* 
 "               :help xxd                                                    
 "
-"      History: 0.1.0 Show own hexman menu entry with hexman commands (gui version).
+"      History: 0.2.1 FIX: from Ingo karkat - conversion back fails 
+"                     (xxd-path was not enclosed in double quotes).
+"		0.2.0 Staying on a ascii character it marks the 
+"		      related hex column.
+"		0.1.1 FIX: hit enter message after moving cursor.
+" 		0.1.0 Show own hexman menu entry with hexman commands 
+"                     (gui version).
 "		0.0.2 FIX: default moving to next hex character 
 "		with <TAB> and <S-TAB> don't work on (LINUX/UNIX)
 "		(see Additional Features).
@@ -303,7 +311,6 @@ function s:HEX_XxdConv()
   else
     return				" can't start xxd
   endif
-  let &mod = mod
   "
   " Nice mapping for TAB/Shift-TAB
   " Move from hex to hex field - with TAB / Shift-TAB
@@ -326,18 +333,16 @@ function s:HEX_XxdConv()
   " Show additional info in statusline (overwrite)
   " Maybe there is a better way to set this with rulerformat but
   " I don't know how I can do this... 
-  if !exists("g:hex_showstatus")
-    let g:hex_showstatus = 0	" no hex statusinfo
-  endif
-  call s:HEX_Status()
-  :highlight AsciiPos guibg=Yellow cterm=reverse term=reverse
-  :au! Cursorhold * exe 'match AsciiPos /\%' . s:HEX_ShowOffsets() . 'v'
-  :set ut=100 
+  let &mod = mod
+  " :highlight AsciiPos guibg=Yellow cterm=reverse term=reverse
+  " :au! Cursorhold * exe 'silent! match AsciiPos /\%' . s:HEX_ShowOffsets() . 'v'
+  " :set ut=100 
   "
   " remember we are in hex mode
   let g:HEX_active=1
   " put cursor to related position
   call s:HEX_ToOffset(offset)
+  call s:HEX_Status()
   "
 endfun
 "
@@ -352,7 +357,9 @@ function s:HEX_XxdBack()
     %!mc vim:xxd -r
   else
     call s:HEX_XxdFind()
-    exe "%!" . g:xxdprogram . " -r"
+    " exe "%!" . g:xxdprogram . " -r"
+    " 07Aug03 Fix
+    exe '%!"' . g:xxdprogram . '" -r'
   endif
   set ft=
   doautocmd filetypedetect BufReadPost
@@ -366,6 +373,10 @@ function s:HEX_XxdBack()
   " switch off Ascii pos highlighting
   :au! Cursorhold
   :match none
+  " switch back
+  if g:hex_showstatus == 1
+	let g:hex_showstatus = 2	" if we call hexman again
+  endif
 endfun
 "
 " ==============================================================================
@@ -553,22 +564,39 @@ function s:HEX_ShowOffsets()
   " Get the current column number.
   let curcol  = col(".")
   "
-  " calculate related ascii position (right part from xxd)
-  " init newcol first ascii position is 51
-  let newcol = 51
-  " first hex part valid till position 12
-  let colpos = 12
-  " Add 3 than 2 than 3 than 2 and so on
-  let coladd = 3
-  while colpos <= curcol
-      let colpos = colpos + coladd
-      let newcol = newcol + 1
-      if coladd > 2
-	let coladd = 2
-      else
+  if curcol > 50
+	" cursor is in ascii part
+	let newcol = 7
+	let colpos = 51
 	let coladd = 3
-      endif
-  endwhile
+  	while colpos <= curcol
+      		let colpos = colpos + 1
+      		let newcol = newcol + coladd
+      		if coladd > 2
+			let coladd = 2
+      		else
+			let coladd = 3
+      		endif
+  	endwhile
+  else
+	" cursor is in  hex part
+  	" init newcol first ascii position is 51
+  	" calculate related ascii position (right part from xxd)
+   	let newcol = 51
+  	" first hex part valid till position 12
+  	let colpos = 12
+  	" Add 3 than 2 than 3 than 2 and so on
+  	let coladd = 3
+  	while colpos <= curcol
+      		let colpos = colpos + coladd
+      		let newcol = newcol + 1
+      		if coladd > 2
+			let coladd = 2
+      		else
+			let coladd = 3
+      		endif
+  	endwhile
+  endif
   " Show offsets
   let s:offset = s:HEX_GetOffset()         	" Next/Prev Hex Position
   let s:hexoff = s:HEX_Nr2Hex(s:offset)	 	" Calculate Number To Hex
@@ -576,7 +604,7 @@ function s:HEX_ShowOffsets()
   " set help off for default
 
   " call s:HEX_Help(hexoff, offset)
-  echo "Offset Hex:[" . s:hexoff ."] Dec:[" . s:offset ."]      Press ? for help"
+  echo "Offset Hex:[" . s:hexoff ."] Dec:[" . s:offset ."]  Press ? for help"
   return newcol
 "
 endfun
@@ -585,17 +613,29 @@ endfun
 " Show / Stop Overwriting Statusline with Offset-Info
 " =======================================================================================
 function s:HEX_Status()
+  " leave if not in hexmode
   if g:HEX_active == 0
     call s:HEX_ErrMsg()
     return
   endif
+  "
+  if !exists("g:hex_showstatus")
+    let g:hex_showstatus = 2	" init - no hex statusinfo -> switch it on
+  endif
+  "  if status 0 never show status - (set in vimrc)
+  if g:hex_showstatus == 0
+	return
+  endif
+  "
   if g:hex_showstatus == 1
+    " switch off
     :au! Cursorhold
     :match none
-    let g:hex_showstatus = 0
+    let g:hex_showstatus = 2
   else
+    " switch on 
     :highlight AsciiPos guibg=Yellow cterm=reverse term=reverse
-    :silent au! Cursorhold * exe 'match AsciiPos /\%' . s:HEX_ShowOffsets() . 'v'
+    :au! Cursorhold * exe 'match AsciiPos /\%' . s:HEX_ShowOffsets() . 'v'
     :set ut=100 
     let g:hex_showstatus = 1
   endif
@@ -605,6 +645,8 @@ endfun
 " =======================================================================================
 function s:HEX_Help()
 " 
+  echo "	Plugin: hexman.vim 	Version: 0.2.1"
+  echo ""
   echo "	Available functions:"
   echo ""
   echo "	<leader>hm		Hex(manager) toggle on / off"
