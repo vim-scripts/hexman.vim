@@ -25,8 +25,8 @@
 "
 "   Maintainer: Peter Franz (Peter.Franz.muc@web.de)
 "          URL: http://vim.sourceforge.net/scripts/...
-"  Last Change: Do 05.06.2003
-"      Version: 0.0.1
+"  Last Change: Sam 14.06.2003
+"      Version: 0.0.2
 "        Usage: Normally, this file should reside in the plugins
 "               directory and be automatically sourced. If not, you must
 "               manually source this file using ':source hexman.vim'.
@@ -45,7 +45,10 @@
 "               :help *23.4* 
 "               :help xxd                                                    
 "
-"      History: 0.0.1 Initial Release
+"      History: 0.0.2 FIX: default moving to next hex character 
+"		with <TAB> and <S-TAB> don't work on (LINUX/UNIX)
+"		(see Additional Features).
+"               0.0.1 Initial Release
 "               Some Functions are derived from Robert Roberts
 "               byteme.vim version 0.0.2
 "               The original plugin can be found at:
@@ -278,9 +281,11 @@ function s:HEX_XxdConv()
   " map <silent> <TAB> :call <SID>HEX_NextPrev(+1)<CR>
   " map <silent> <S-TAB> :call <SID>HEX_NextPrev(-1)<CR>
   " Map key variable to invoke the command
+  " 14Jun03 If hex_movetab is not defines - default = 1
   if !exists("g:hex_movetab")
-    let g:hex_movetab = 0	" no next / prev with tab key
-  else
+    let g:hex_movetab = 1	" Default
+  endif
+  if g:hex_movetab == 1
     let g:hex_tab = mapcheck("<TAB>")	" save mapping for TAB
     let g:hex_stab = mapcheck("<S-TAB>")	" save mapping for Shift-TAB
     let g:hex_stab = 0
