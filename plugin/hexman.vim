@@ -32,8 +32,8 @@
 "
 "   Maintainer: Peter Franz (Peter.Franz.muc@web.de)
 "          URL: http://vim.sourceforge.net/scripts/...
-"  LastChange : Mo 18.08.2003
-"      Version: 0.4.1
+"  LastChange : 30Okt03
+"      Version: 0.5.0
 "        Usage: Normally, this file should reside in the plugins
 "               directory and be automatically sourced. If not, you must
 "               manually source this file using ':source hexman.vim'.
@@ -45,14 +45,23 @@
 "               (see Available functions).
 "               The program xxd is needed to convert the file in hex (and
 "               back).
-"               Only changes in the hex part are used.  
-"               Changes in the printable text part on the right are ignored.
+"		
+"               Changes in the printable text part are now supported in
+"		Replace mode (command "R" or Select Mode "gh" ) 
+"		for most characters (as of version 0.5.0).
 "               
 "               Additional help:
 "               :help *23.4* 
 "               :help xxd                                                    
 "
-"      History: 0.4.1 FIX: use english Message.
+"      Vim Features:  As this plugin relies on the vim features:
+"		autocmd, langmap and byte_offset, make sure Vim is built with
+"		this features (info with :version cammand).
+"
+"      History: 0.5.0 Changing characters in ascii area shows the releated
+"		      hex values. Note: not all ascii characters are supported!
+"		      (see Known Problems).
+"		0.4.1 FIX: use english Message.
 "		0.4.0 Switch cursor between hex and ascii area.
 "		      (see Additional Features).
 "		0.3.0 After calling/leaving hexman the cursor is set to current
@@ -103,6 +112,18 @@
 "	If something is wrong (I think there is) or we can do 
 "	something better - please let me know...
 "
+"=============================================================================
+"	Known Problems:
+"       - Changes in the printable text part are now supported in
+"	  Replace mode (command "R" or Select Mode "gh" ) 
+"	  for most characters.
+"	  For this feature I'll try to map all ascii characters, echo the
+"	  typed character and call a function wich show in the hexpart the
+"	  related hex value. For this I have to leave the Replace mode.
+"	  I don't know if it is possible to enter the Replace mode again -
+"	  so I switch to Select mode. In this mode I'm not able to map
+"	  some keys - like: + - ?
+"	Appreciate any help!
 "=============================================================================
 "
 " 	Define mapping:
@@ -189,6 +210,14 @@ let loaded_hexman = 1
 function s:HEX_Manager()
 "
   if g:HEX_active == 1
+    " 10OCT04 FR Unmapping
+    :call s:HEX_UnMapChars()
+    "
+    let curcol  = col(".")
+    if curcol > 50
+	" cursor is in ascii part - we put it in hex part 
+	call s:HEX_ToggleH2A()
+    endif
     " get cursor position from hex, convert file to normal and put cursor 
     " get cursor position
     let offset = s:HEX_GetOffset()
@@ -202,35 +231,43 @@ function s:HEX_Manager()
     " clear offset infos
     echo ""			
   else
+    " Problem:
     " vim don't support the current cursor position via a function
     " only (known) posibility is to get it with g<c-g>
     " We put this string in a variable and pick the number after Byte
-    " but this is language dependend - so we switch temporarily to "EN".
+    " but this is language dependend - so we switch temporarily to "EN",
+    " if langmap is supported - if not we try without.
     " here we go
     "
     " get current language
     " use of register h - hopefully not used
-    redir @h
-    :silent exe ":lan mes"
-    :redir END
-    let sLanS = @h
-    let nC = strlen(sLanS) - 1			" get string length
-    let sMes = strpart(sLanS, nC-2, 2)	" two char for mes
-    " messages in english
-    :silent exe ":lan mes en"
+    if has("langmap")
+    	redir @h
+    	:silent exe ":lan mes"
+    	:redir END
+    	let sLanS = @h
+    	let nC = strlen(sLanS) - 1			" get string length
+    	let sMes = strpart(sLanS, nC-2, 2)	" two char for mes
+    	" messages in english
+    	:silent exe ":lan mes en"
+    endif
     " use of register h - hopefully not used
     redir @h
     " put message in register H
     :silent exe "normal g\<c-g>"
     :redir END
-    " back to original message
-    :silent exe ":lan mes " . sMes
+    if has("langmap")
+    	" back to original message language
+    	:silent exe ":lan mes " . sMes
+    endif
     let sH = @h		" put string from register H in variable sH
     let sPos = s:HEX_CutG(sH) - 1	" subtract one
     " convert over xxd
     :silent call s:HEX_XxdConv()
     " move to calculated position
     call s:HEX_ToOffset(sPos)
+    " 10OCT04 FR Keymapping
+    :silent call s:HEX_MapChars()
   endif
 endfun
 "
@@ -380,7 +417,7 @@ function s:HEX_XxdConv()
     " let g:hex_stab = 0
     map <silent> <TAB> :silent call <SID>HEX_NextPrev(+1)<CR>
     map <silent> <S-TAB> :silent call <SID>HEX_NextPrev(-1)<CR>
-    map <silent> t :silent call <SID>HEX_ToggleH2A()<CR>
+    nmap <silent> t :silent call <SID>HEX_ToggleH2A()<CR>
     map <silent> ? :call <SID>HEX_Help()<CR>
   endif
   "
@@ -472,7 +509,7 @@ function s:HEX_Delete()
     " 
     :norm! ra
     " go to normal Mode
-    call s:HEX_XxdBack()
+    :silent call s:HEX_XxdBack()
     " goto file position
     exe gopos"go"
     " delete character
@@ -730,6 +767,90 @@ function s:HEX_Status()
     let g:hex_showstatus = 1
   endif
 endfun
+"
+" =======================================================================================
+" Map for (most) characters 
+" =======================================================================================
+function s:HEX_MapChars()
+  " characters I can't  get in a loop
+  execute "inoremap <Space> <Space><ESC>:call <SID>HEX_Char()<CR>"
+  execute "inoremap <Bar> <Bar><ESC>:call <SID>HEX_Char()<CR>"
+  execute "inoremap \/ \/<ESC>:call <SID>HEX_Char()<CR>"
+  execute "inoremap \" \"<ESC>:call <SID>HEX_Char()<CR>"
+  execute "inoremap \! \!<ESC>:call <SID>HEX_Char()<CR>"
+  execute "inoremap \§ \§<ESC>:call <SID>HEX_Char()<CR>"
+  execute "inoremap \~ \~<ESC>:call <SID>HEX_Char()<CR>"
+  
+  "
+  " loop from 0 till z
+  let letter = "0"
+  while letter <= "z"
+    execute "inoremap" letter letter . "<ESC>:call <SID>HEX_Char()<CR>"
+    let letter = nr2char(char2nr(letter) + 1)
+  endwhile
+  "
+  " loop from # till .
+  let letter = "#"
+  while letter <= "."
+    execute "inoremap" letter letter . "<ESC>:call <SID>HEX_Char()<CR>"
+    let letter = nr2char(char2nr(letter) + 1)
+  endwhile
+endfun
+"
+" =======================================================================================
+" UnMap characters
+" =======================================================================================
+function s:HEX_UnMapChars()
+  "
+  " unmap from 0 to z
+  let letter = char2nr("0")
+  while letter <= char2nr("z")
+    execute "iunmap" nr2char(letter)
+    let letter = letter + 1
+  endwhile
+"
+  " unmap from # to .
+  let letter = char2nr("#")
+  while letter <= char2nr(".")
+    execute "iunmap" nr2char(letter)
+    let letter = letter + 1
+  endwhile
+  "
+  execute "iunmap <Space>"
+  execute "iunmap <Bar>"
+  execute "iunmap \/"
+  execute "iunmap \""
+  execute "iunmap \!"
+  execute "iunmap \§"
+  execute "iunmap \~"
+endfun
+" 
+" =======================================================================================
+" Show Character
+" =======================================================================================
+function s:HEX_Char()
+  " get character
+  let char = getline(".")[col(".")-1]
+  let hex = s:HEX_Nr2Hex(char2nr(char))
+  call s:HEX_ToggleH2A()	" Move cursor to other area
+  " delete two characters (hex)
+  exe ":norm! 2x"
+  " switch to insert mode and put new hex value
+  exe ":norm! i" . hex
+  " move one forward
+  call s:HEX_NextPrev(1)
+  " Move cursor to other area
+  call s:HEX_ToggleH2A()
+  " Move cursor one right
+  exe ":norm! <Right>"
+  " refresh status line
+  exe 'silent! match AsciiPos /\%' . s:HEX_ShowOffsets() . 'v'
+  " start select mode (hope it's the same like replace)
+  exe ":norm! gh"
+  " echo "hexchar ist:" . hex 
+endfun
+" 
+" 
 " =======================================================================================
 " Show Hexoffset and Help Menue (if required)
 " =======================================================================================
@@ -753,7 +874,6 @@ function s:HEX_Help()
 	echo "	<leader> = " . g:mapleader
   endif
 endfun
-" 
 "=============================================================================
 " restore cpoptions
 let &cpo = s:save_cpo
