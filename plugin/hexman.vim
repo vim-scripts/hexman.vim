@@ -12,28 +12,12 @@
 "
 "		Hexmanger provides keymapping to view quickly your file
 "		in hexmode (convertion is done over the program xxd).
-"
-"		Additional features:
-"		- shows in statusline the current offset (hex and dec.)
-"		- move to next/previous hex character with <TAB> and <S-TAB>
-"         	  If you don't like this mapping - please set in your vimrc:
-"	  	  let hex_movetab = 0
-"		- Switch cursor between hex and ascii area 
-"		  (as of version 0.4.0)
-"		- staying on a hex character it marks the related ascii column
-"		- staying on a ascii character it marks the related hex column
-"		  (as of version 0.2.0)
-"		- Goto hex offset	
-"		- Delete hex character under cursor	
-"		- Insert ascii character before cursor	                      
-"		- Show own hexman menu entry with hexman commands (gui version).
-"         	  If you don't like the menu - please set in your vimrc:
-"	  	  let hex_menu = 0 (as of version 0.1.0)
+"		(more info - see Additional Features in HexManger).
 "
 "   Maintainer: Peter Franz (Peter.Franz.muc@web.de)
 "          URL: http://vim.sourceforge.net/scripts/...
-"  LastChange : 31Okt03
-"      Version: 0.5.1
+"  LastChange : 20Nov03
+"      Version: 0.6.0
 "        Usage: Normally, this file should reside in the plugins
 "               directory and be automatically sourced. If not, you must
 "               manually source this file using ':source hexman.vim'.
@@ -57,8 +41,16 @@
 "      Vim Features:  As this plugin relies on the vim features:
 "		autocmd, langmap and byte_offset, make sure Vim is built with
 "		this features (info with :version cammand).
+"	
+"      Vim Version:   6.2 onward
 "
-"      History: 0.5.1 FIX: Editing in Hex part was not possible (as of 0.5.0).
+"      History: 0.6.0 Search Hex Char with \hf  
+"                     With search history eg. /<Up> you can repeat the search.
+"                     Possibility to switch off advanced ascii/hex editing
+"		      (see Additional Features).
+"		0.5.3 While Hex editing, move cursor to next hex block.
+"		0.5.2 FIX: error message E197 on unix systems .
+"		0.5.1 FIX: Editing in Hex part was not possible (as of 0.5.0).
 "		0.5.0 Changing characters in ascii area shows the releated
 "		      hex values. Note: not all ascii characters are supported!
 "		      (see Known Problems).
@@ -97,18 +89,37 @@
 "	<leader> ht  	HexToggle: Switch cursor between hex and ascii area.
 "	<leader> hs  	HexStatus: Show / Hide hexoffset infos in statusline
 "			and related ascii colum.
+"	<leader> hf  	HexFind: Find Hex Character
 "
 " 	If you want, you can change the mapping in your vimrc:
 "	Example: call/leave with function key F6 the Hexmode:
 "	map <F6>  <Plug>HexManager                                           
 "
 "	Additional Features in HexManger:
+"	- Find Hex Character (see Available functions).
+"       - Changes in the printable text part are now supported in
+"	  Replace mode (command "R" or Select Mode "gh" ). 
+"	  In hex part cursor moves automatically to next hex block.
+" 	  If you don't like or have problems with it - please
+"	  set in your vimrc: let hex_mapchars = 0 
+"	  (see also Known Problems).
 "	- show in statusline the current offset (hex and dec.)
-"	- moving to next hex character with <TAB> and <S-TAB>,
-"         switch cursor between hex and ascii area with character t
+"	- staying on a hex character it marks the related ascii column
+"	- move to next/previous hex character with <TAB> and <S-TAB>
 "         If you don't like this mapping - please set in your vimrc:
 "	  let hex_movetab = 0
+"	- Switch cursor between hex and ascii area 
+"	  (as of version 0.4.0)
 "	- staying on a hex character it marks the related ascii column
+"	- staying on a ascii character it marks the related hex column
+"	  (as of version 0.2.0)
+"	- Goto hex offset	
+"	- Delete hex character under cursor	
+"	- Insert ascii character before cursor	                      
+"	- Show own hexman menu entry with hexman commands (gui version).
+"         If you don't like the menu - please set in your vimrc:
+"	  let hex_menu = 0 (as of version 0.1.0)
+
 "
 "	If something is wrong (I think there is) or we can do 
 "	something better - please let me know...
@@ -122,8 +133,8 @@
 "	  typed character and call a function wich show in the hexpart the
 "	  related hex value. For this I have to leave the Replace mode.
 "	  I don't know if it is possible to enter the Replace mode again -
-"	  so I switch to Select mode. In this mode I'm not able to map
-"	  some keys - like: + - ?
+"	  we need a function like startreplace - so I switch to Select mode. 
+"         In this mode I'm not able to map some keys - like: + - ?
 "	Appreciate any help!
 "=============================================================================
 "
@@ -153,6 +164,9 @@ endif
 if !hasmapto('<Plug>HexStatus')
   map <unique> <Leader>hs <Plug>HexStatus
 endif
+if !hasmapto('<Plug>HexFind')
+  map <unique> <Leader>hf <Plug>HexFind
+endif
 
 noremap <unique> <script> <Plug>HexManager <SID>Manager
 noremap <unique> <script> <Plug>HexDelete  <SID>Delete
@@ -162,6 +176,7 @@ noremap <unique> <script> <Plug>HexNext    <SID>Next
 noremap <unique> <script> <Plug>HexPrev    <SID>Prev
 noremap <unique> <script> <Plug>HexToggle  <SID>Toggle
 noremap <unique> <script> <Plug>HexStatus  <SID>Status
+noremap <unique> <script> <Plug>HexFind    <SID>Find
 
 noremap <SID>Manager   :call <SID>HEX_Manager()<CR>
 noremap <SID>Delete    :call <SID>HEX_Delete()<CR>
@@ -171,6 +186,8 @@ noremap <SID>Next      :call <SID>HEX_NextPrev(+1)<CR>
 noremap <SID>Prev      :call <SID>HEX_NextPrev(-1)<CR>
 noremap <SID>Toggle    :call <SID>HEX_ToggleH2A()<CR>
 noremap <SID>Status    :call <SID>HEX_Status()<CR>
+noremap <SID>Find      :call <SID>HEX_Find()<CR>
+
 
 "=============================================================================
 " We first store the old value of 'cpoptions' in the s:save_cpo variable.  At
@@ -198,6 +215,8 @@ let loaded_hexman = 1
 	an <silent> 9000.40 He&xman.&Insert\ ascii\ char\ before\ cursor<Tab><leader>hi
 		\ :call <SID>HEX_Insert()<CR>
 	an 9000.70 He&xman.-sep2-			<Nop>
+	an <silent> 9000.80 He&xman.&Find\ /Hex\ char<Tab><leader>hf
+		\ :call <SID>HEX_Find()<CR>
 	an <silent> 9000.90 He&xman.&Goto\ /Hex\ offset<Tab><leader>hg
 		\ :call <SID>HEX_Goto()<CR>
 	an <silent> 9000.90 He&xman.&Show/Hide\ infos<Tab><leader>hs
@@ -248,9 +267,19 @@ function s:HEX_Manager()
     	:redir END
     	let sLanS = @h
     	let nC = strlen(sLanS) - 1			" get string length
-    	let sMes = strpart(sLanS, nC-2, 2)	" two char for mes
+	" 05NOV03 search for quoted String (not only two characters)
+	" first search for quote - get pos
+	let nPosl = stridx(sLanS, "\"")
+	let nStart = nPosl + 1			" one character after quote
+	let nLen = nC - nPosl - 1		" Stringlen-Startpos-quote
+    	let sMes = strpart(sLanS, nStart, nLen)	" get lan mes
+    	" let sMes = strpart(sLanS, nC-2, 2)	" two char for mes
     	" messages in english
-    	:silent exe ":lan mes en"
+	if has("unix")
+    		:silent exe ":lan mes en_US"
+	else
+    		:silent exe ":lan mes en"
+	endif
     endif
     " use of register h - hopefully not used
     redir @h
@@ -773,6 +802,13 @@ endfun
 " Map for (most) characters 
 " =======================================================================================
 function s:HEX_MapChars()
+  " Map it only if wanted
+  if !exists("g:hex_mapchars")
+    let g:hex_mapchars = 1	" Default
+  endif
+  if g:hex_mapchars == 0
+	return
+  endif
   " characters I can't  get in a loop
   execute "inoremap <Space> <Space><ESC>:call <SID>HEX_Char()<CR>"
   execute "inoremap <Bar> <Bar><ESC>:call <SID>HEX_Char()<CR>"
@@ -803,6 +839,9 @@ endfun
 " =======================================================================================
 function s:HEX_UnMapChars()
   "
+  if g:hex_mapchars == 0
+	return
+  endif
   " unmap from 0 to z
   let letter = char2nr("0")
   while letter <= char2nr("z")
@@ -850,6 +889,20 @@ function s:HEX_Char()
   else
      " Move cursor one right
      exe ":norm! l"
+     let curcol  = col(".")
+     " easier editing - move to next hex block 
+     " if cursor is on position 49 put it to new line
+     if curcol == 49
+        call s:HEX_NextPrev(1)
+     endif
+     " if we are on a space (between hex blocks) move to nex hex block
+     let si = 14
+     while si < 45
+     	if curcol == si
+        	exe ":norm! l"
+     	endif
+	let si = si + 5
+     endwhile
   endif
   " Move cursor one right
   " exe ":norm! <Right>"
@@ -862,11 +915,19 @@ endfun
 " 
 " 
 " =======================================================================================
+" Find HEX Character
+" =======================================================================================
+function s:HEX_Find()
+  let hf = tolower(input("Enter Hex Charcter e.g. 0d:"))
+  execute "normal! /" . hf .  "\\%>9c\\%<49c\<cr>"
+endfun
+" 
+" =======================================================================================
 " Show Hexoffset and Help Menue (if required)
 " =======================================================================================
 function s:HEX_Help()
 " 
-  echo "	Plugin: hexman.vim 	Version: 0.4.1"
+  echo "	Plugin: hexman.vim 	Version: 0.6.0"
   echo ""
   echo "	Available functions:"
   echo ""
@@ -874,6 +935,7 @@ function s:HEX_Help()
   echo "	<leader>hd  		Delete hex character under cursor"
   echo "	<leader>hi  		Insert ascii character before cursor"
   echo "	<leader>hg  		Goto hex offset. "
+  echo "	<leader>hf  		Find Hex Character."
   echo "	<leader>hn  		Goto next hex offset. "
   echo "	<leader>hp  		Goto previous hex offset. "
   echo "	<leader>ht  		Switch cursor between hex and ascii area "
