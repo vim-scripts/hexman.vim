@@ -1,5 +1,5 @@
 "=============================================================================
-"    Copyright: Copyright (C) 2003 Peter Franz
+"    Copyright: Copyright (C) 2003-2006 Peter Franz
 "               Permission is hereby granted to use and distribute this code,
 "               with or without modifications, provided that this copyright
 "               notice is copied with it. Like anything else that's free,
@@ -14,10 +14,10 @@
 "		in hexmode (convertion is done over the program xxd).
 "		(more info - see Additional Features in HexManger).
 "
-"   Maintainer: Peter Franz (Peter.Franz.muc@web.de)
-"          URL: http://vim.sourceforge.net/scripts/...
-"  LastChange : 20Nov03
-"      Version: 0.6.0
+"   Maintainer: Peter Franz (Peter.Franz.muc@freenet.de)
+"          URL: http://www.vim.org/scripts/script.php?script_id=666
+"  LastChange : 30Mrz06
+"      Version: 0.7.0
 "        Usage: Normally, this file should reside in the plugins
 "               directory and be automatically sourced. If not, you must
 "               manually source this file using ':source hexman.vim'.
@@ -44,7 +44,9 @@
 "	
 "      Vim Version:   6.2 onward
 "
-"      History: 0.6.0 Search Hex Char with \hf  
+"      History: 0.7.0 Support VIM7
+"      		      In vim7.0c xxd was not found / changed match syntax.
+"               0.6.0 Search Hex Char with \hf  
 "                     With search history eg. /<Up> you can repeat the search.
 "                     Possibility to switch off advanced ascii/hex editing
 "		      (see Additional Features).
@@ -510,11 +512,27 @@ function s:HEX_XxdFind()
 "
   if !exists("g:xxdprogram")
     " On the PC xxd may not be in the path but in the install directory
-    if (has("win32") || has("dos32")) && !executable("xxd")
-      let g:xxdprogram = $VIMRUNTIME . (&shellslash ? '/' : '\') . "xxd.exe"
-    else
-      let g:xxdprogram = "xxd"
-    endif
+"    if (has("win32") || has("dos32")) && !executable("xxd")
+"      let g:xxdprogram = $VIMRUNTIME . (&shellslash ? '/' : '\') . "xxd.exe"
+"    else
+"      let g:xxdprogram = "xxd"
+"    endif
+"    in vim 7.0c xxd is not found anymore - use code from _vimrc (diff)
+"
+   let g:xxdprogram = "xxd"
+   if (has("win32") || has("dos32")) 
+     if $VIMRUNTIME =~ ' '
+       if &sh =~ '\<cmd'
+         let cmd = '""' . $VIMRUNTIME . '\xxd"'
+         let eq = '"'
+       else
+         let cmd = substitute($VIMRUNTIME, ' ', '" ', '') . '\xxd"'
+       endif
+     else
+       let cmd = $VIMRUNTIME . '\xxd'
+     endif
+     let g:xxdprogram = cmd
+   endif
   endif
 endfun
 "
@@ -792,7 +810,11 @@ function s:HEX_Status()
   else
     " switch on 
     :highlight AsciiPos guibg=Yellow cterm=reverse term=reverse
-    :au! Cursorhold * exe 'match AsciiPos /\%' . s:HEX_ShowOffsets() . 'v'
+    let s:sff = s:HEX_ShowOffsets()
+    let s:fff = s:sff + 1
+
+    " 29Mrz06 FR vim 7.0c don't accept /\%<colpos>v
+    :au! Cursorhold * exe 'match AsciiPos /\%<' . (s:HEX_ShowOffsets() + 1) . 'v.\%>' . s:HEX_ShowOffsets() . 'v/'
     :set ut=100 
     let g:hex_showstatus = 1
   endif
