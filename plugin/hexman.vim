@@ -16,8 +16,8 @@
 "
 "   Maintainer: Peter Franz (Peter.Franz.muc@freenet.de)
 "          URL: http://www.vim.org/scripts/script.php?script_id=666
-"  LastChange : 30Mrz06
-"      Version: 0.7.0
+"  LastChange : 16Jan07
+"      Version: 0.7.1
 "        Usage: Normally, this file should reside in the plugins
 "               directory and be automatically sourced. If not, you must
 "               manually source this file using ':source hexman.vim'.
@@ -44,7 +44,9 @@
 "	
 "      Vim Version:   6.2 onward
 "
-"      History: 0.7.0 Support VIM7
+"      History: 0.7.1 Patch from Alejandro Cornejo / language independent
+"      		      cursor offset calculation.
+"               0.7.0 Support VIM7
 "      		      In vim7.0c xxd was not found / changed match syntax.
 "               0.6.0 Search Hex Char with \hf  
 "                     With search history eg. /<Up> you can repeat the search.
@@ -263,37 +265,46 @@ function s:HEX_Manager()
     "
     " get current language
     " use of register h - hopefully not used
-    if has("langmap")
-    	redir @h
-    	:silent exe ":lan mes"
-    	:redir END
-    	let sLanS = @h
-    	let nC = strlen(sLanS) - 1			" get string length
-	" 05NOV03 search for quoted String (not only two characters)
-	" first search for quote - get pos
-	let nPosl = stridx(sLanS, "\"")
-	let nStart = nPosl + 1			" one character after quote
-	let nLen = nC - nPosl - 1		" Stringlen-Startpos-quote
-    	let sMes = strpart(sLanS, nStart, nLen)	" get lan mes
-    	" let sMes = strpart(sLanS, nC-2, 2)	" two char for mes
-    	" messages in english
-	if has("unix")
-    		:silent exe ":lan mes en_US"
-	else
-    		:silent exe ":lan mes en"
-	endif
-    endif
-    " use of register h - hopefully not used
-    redir @h
-    " put message in register H
-    :silent exe "normal g\<c-g>"
-    :redir END
-    if has("langmap")
-    	" back to original message language
-    	:silent exe ":lan mes " . sMes
-    endif
-    let sH = @h		" put string from register H in variable sH
-    let sPos = s:HEX_CutG(sH) - 1	" subtract one
+"    if has("langmap")
+"    	redir @h
+"    	:silent exe ":lan mes"
+"    	:redir END
+"    	let sLanS = @h
+"    	let nC = strlen(sLanS) - 1			" get string length
+"	" 05NOV03 search for quoted String (not only two characters)
+"	" first search for quote - get pos
+"	let nPosl = stridx(sLanS, "\"")
+"	let nStart = nPosl + 1			" one character after quote
+"	let nLen = nC - nPosl - 1		" Stringlen-Startpos-quote
+"    	let sMes = strpart(sLanS, nStart, nLen)	" get lan mes
+"    	" let sMes = strpart(sLanS, nC-2, 2)	" two char for mes
+"    	" messages in english
+"	if has("unix")
+"    		:silent exe ":lan mes en_US.UTF-8"
+"	else
+"    		:silent exe ":lan mes en"
+"	endif
+"    endif
+"    " use of register h - hopefully not used
+"    redir @h
+"    " put message in register H
+"    :silent exe "normal g\<c-g>"
+"    :redir END
+"    if has("langmap")
+"    	" back to original message language
+"    	:silent exe ":lan mes " . sMes
+"    endif
+"    let sH = @h		" put string from register H in variable sH
+"    let sPos = s:HEX_CutG(sH) - 1	" subtract one
+"    Alejandro Cornejo: OK so I got an error about the lan mes thing, I think
+"    its because although I'm at unix using VIM 7, if you use console vim it is
+"    en_US, and if you use gvim it is en_US.UTF-8.
+"
+"    So anyway, here is a patch to fix this, I think this should be a
+"    quicker/cleaner way of getting the line offset instead of capturing the
+"    result of a g<c-g> command. Also it is language independent. Let me know if
+"    it works for you too.
+    let sPos = line2byte(line("."))+col(".")-2
     " convert over xxd
     :silent call s:HEX_XxdConv()
     " move to calculated position
