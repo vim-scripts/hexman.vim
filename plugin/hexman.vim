@@ -16,8 +16,8 @@
 "
 "   Maintainer: Peter Franz (Peter.Franz.muc@freenet.de)
 "          URL: http://www.vim.org/scripts/script.php?script_id=666
-"  LastChange : 16Jan07
-"      Version: 0.7.1
+"  LastChange : 18Jan07
+"      Version: 0.7.2
 "        Usage: Normally, this file should reside in the plugins
 "               directory and be automatically sourced. If not, you must
 "               manually source this file using ':source hexman.vim'.
@@ -44,7 +44,11 @@
 "	
 "      Vim Version:   6.2 onward
 "
-"      History: 0.7.1 Patch from Alejandro Cornejo / language independent
+"      History: 0.7.2 Patch from Ingo Karkat / 'xxd' did not
+"      		      start when VIM is installed in a directory containing 
+"      		      spaces (e.g. on an English Windows XP: 
+"      		      "c:\Program Files\vim\vim70\xxd.exe").
+"               0.7.1 Patch from Alejandro Cornejo / language independent
 "      		      cursor offset calculation.
 "               0.7.0 Support VIM7
 "      		      In vim7.0c xxd was not found / changed match syntax.
@@ -534,7 +538,9 @@ function s:HEX_XxdFind()
    if (has("win32") || has("dos32")) 
      if $VIMRUNTIME =~ ' '
        if &sh =~ '\<cmd'
-         let cmd = '""' . $VIMRUNTIME . '\xxd"'
+"	 18Jan07 fix from Ingo karkat
+"
+         let cmd = '"' . $VIMRUNTIME . '\xxd"'
          let eq = '"'
        else
          let cmd = substitute($VIMRUNTIME, ' ', '" ', '') . '\xxd"'
@@ -960,7 +966,7 @@ endfun
 " =======================================================================================
 function s:HEX_Help()
 " 
-  echo "	Plugin: hexman.vim 	Version: 0.6.0"
+  echo "	Plugin: hexman.vim 	Version: 0.7.2"
   echo ""
   echo "	Available functions:"
   echo ""
