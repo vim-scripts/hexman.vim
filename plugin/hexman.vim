@@ -1,5 +1,5 @@
 "=============================================================================
-"    Copyright: Copyright (C) 2003-2006 Peter Franz
+"    Copyright: Copyright (C) 2003-2014 Peter Franz
 "               Permission is hereby granted to use and distribute this code,
 "               with or without modifications, provided that this copyright
 "               notice is copied with it. Like anything else that's free,
@@ -14,10 +14,10 @@
 "		in hexmode (convertion is done over the program xxd).
 "		(more info - see Additional Features in HexManger).
 "
-"   Maintainer: Peter Franz (Peter.Franz.muc@freenet.de)
+"   Maintainer: Peter Franz (Peter.Franz.muc( @ )freenet.de)
 "          URL: http://www.vim.org/scripts/script.php?script_id=666
 "  LastChange : 18Jan07
-"      Version: 0.7.2
+"      Version: 0.7.3
 "        Usage: Normally, this file should reside in the plugins
 "               directory and be automatically sourced. If not, you must
 "               manually source this file using ':source hexman.vim'.
@@ -42,9 +42,10 @@
 "		autocmd, langmap and byte_offset, make sure Vim is built with
 "		this features (info with :version cammand).
 "	
-"      Vim Version:   6.2 onward
+"      Vim Version:   7.4 onward
 "
-"      History: 0.7.2 Patch from Ingo Karkat / 'xxd' did not
+"      History: 0.7.3 Gvim 7.4 support - xxd on Windows was not found. 
+"               0.7.2 Patch from Ingo Karkat / 'xxd' did not
 "      		      start when VIM is installed in a directory containing 
 "      		      spaces (e.g. on an English Windows XP: 
 "      		      "c:\Program Files\vim\vim70\xxd.exe").
@@ -527,30 +528,13 @@ function s:HEX_XxdFind()
 "
   if !exists("g:xxdprogram")
     " On the PC xxd may not be in the path but in the install directory
-"    if (has("win32") || has("dos32")) && !executable("xxd")
-"      let g:xxdprogram = $VIMRUNTIME . (&shellslash ? '/' : '\') . "xxd.exe"
-"    else
-"      let g:xxdprogram = "xxd"
-"    endif
-"    in vim 7.0c xxd is not found anymore - use code from _vimrc (diff)
-"
-   let g:xxdprogram = "xxd"
-   if (has("win32") || has("dos32")) 
-     if $VIMRUNTIME =~ ' '
-       if &sh =~ '\<cmd'
-"	 18Jan07 fix from Ingo karkat
-"
-         let cmd = '"' . $VIMRUNTIME . '\xxd"'
-         let eq = '"'
-       else
-         let cmd = substitute($VIMRUNTIME, ' ', '" ', '') . '\xxd"'
-       endif
-     else
-       let cmd = $VIMRUNTIME . '\xxd'
-     endif
-     let g:xxdprogram = cmd
-   endif
+    if (has("win32") || has("dos32")) && !executable("xxd")
+      let g:xxdprogram = $VIMRUNTIME . (&shellslash ? '/' : '\') . "xxd.exe"
+    else
+      let g:xxdprogram = "xxd"
+    endif
   endif
+
 endfun
 "
 " ==============================================================================
