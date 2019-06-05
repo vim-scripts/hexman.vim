@@ -151,41 +151,40 @@
 "
 if !hasmapto('<Plug>HexManager')
   map <unique> <Leader>hm <Plug>HexManager
+  noremap <unique> <script> <Plug>HexManager <SID>Manager
 endif
 if !hasmapto('<Plug>HexDelete')
   map <unique> <Leader>hd <Plug>HexDelete
+  noremap <unique> <script> <Plug>HexDelete  <SID>Delete
 endif
 if !hasmapto('<Plug>HexInsert')
   map <unique> <Leader>hi <Plug>HexInsert
+  noremap <unique> <script> <Plug>HexInsert  <SID>Insert
 endif
 if !hasmapto('<Plug>HexGoto')
   map <unique> <Leader>hg <Plug>HexGoto
+  noremap <unique> <script> <Plug>HexGoto    <SID>Goto
 endif
 if !hasmapto('<Plug>HexNext')
   map <unique> <Leader>hn <Plug>HexNext
+  noremap <unique> <script> <Plug>HexNext    <SID>Next
 endif
 if !hasmapto('<Plug>HexPrev')
   map <unique> <Leader>hp <Plug>HexPrev
+  noremap <unique> <script> <Plug>HexPrev    <SID>Prev
 endif
 if !hasmapto('<Plug>HexToggle')
   map <unique> <Leader>ht <Plug>HexToggle
+  noremap <unique> <script> <Plug>HexToggle  <SID>Toggle
 endif
 if !hasmapto('<Plug>HexStatus')
   map <unique> <Leader>hs <Plug>HexStatus
+  noremap <unique> <script> <Plug>HexStatus  <SID>Status
 endif
 if !hasmapto('<Plug>HexFind')
   map <unique> <Leader>hf <Plug>HexFind
+  noremap <unique> <script> <Plug>HexFind    <SID>Find
 endif
-
-noremap <unique> <script> <Plug>HexManager <SID>Manager
-noremap <unique> <script> <Plug>HexDelete  <SID>Delete
-noremap <unique> <script> <Plug>HexInsert  <SID>Insert
-noremap <unique> <script> <Plug>HexGoto    <SID>Goto
-noremap <unique> <script> <Plug>HexNext    <SID>Next
-noremap <unique> <script> <Plug>HexPrev    <SID>Prev
-noremap <unique> <script> <Plug>HexToggle  <SID>Toggle
-noremap <unique> <script> <Plug>HexStatus  <SID>Status
-noremap <unique> <script> <Plug>HexFind    <SID>Find
 
 noremap <SID>Manager   :call <SID>HEX_Manager()<CR>
 noremap <SID>Delete    :call <SID>HEX_Delete()<CR>
@@ -838,7 +837,7 @@ function s:HEX_MapChars()
   execute "inoremap \/ \/<ESC>:call <SID>HEX_Char()<CR>"
   execute "inoremap \" \"<ESC>:call <SID>HEX_Char()<CR>"
   execute "inoremap \! \!<ESC>:call <SID>HEX_Char()<CR>"
-  execute "inoremap \ง \ง<ESC>:call <SID>HEX_Char()<CR>"
+  execute "inoremap \ยง \ยง<ESC>:call <SID>HEX_Char()<CR>"
   execute "inoremap \~ \~<ESC>:call <SID>HEX_Char()<CR>"
   
   "
@@ -884,7 +883,7 @@ function s:HEX_UnMapChars()
   execute "iunmap \/"
   execute "iunmap \""
   execute "iunmap \!"
-  execute "iunmap \ง"
+  execute "iunmap \ยง"
   execute "iunmap \~"
 endfun
 " 
